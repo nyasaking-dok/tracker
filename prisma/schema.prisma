@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  userName       String   @unique
+  apiKey         String
+  email          String   @unique
+  name           String
+  country        String   @default("US")
+  timeZone       String   @default("America/Los_Angeles")
+  description    String?
+  message        String?
+  disabled       Boolean  @default(false)
+  disabledMessage String?
+  tags           Json     @default("{}")
+  privileges     String[] @default([])
+  adminDevices   Int      @default(0)
+  expires        DateTime?
+  creation       DateTime @default(now())
+  modification   DateTime @default(now()) @updatedAt
+  lastLogin      DateTime?
+  apiDailyUsage  Int      @default(0)
+  apiUsageDate   DateTime @default(now())
+
+  masterId String? @map("masterId")
+  master   User?   @relation("MasterToSubUser", fields: [masterId], references: [id], onDelete: SetNull)
+  subUsers User[]  @relation("MasterToSubUser", onDelete: Cascade)
+
+  devices  Device[]
+  groups   Group[]
+
+  @@map("users")
+}
+
+model Device {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  min         String?
+  tags        Json     @default("{}")
+  expires     DateTime?
+  ownerId     String   @map("ownerId")
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  apiKey      String   @unique @default(uuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  locations  Location[]
+  alerts     Alert[]
+  commands   CommandLog[]
+  ingestionKeyHash String @unique
+
+  @@index([ownerId])
+  @@map("devices")
+}
+
+model Group {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  deviceIds    String[] @default([])
+  ownerId      String   @map("ownerId")
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  creation     DateTime @default(now())
+  lastModified DateTime @default(now()) @updatedAt
+
+  @@index([ownerId])
+  @@map("groups")
+}
+
+model Location {
+  id                   String   @id @default(uuid())
+  deviceId             String   @map("deviceId")
+  dateTime             DateTime
+  latitude             Float
+  longitude            Float
+  speed                Float    @default(0)
+  course               Float    @default(0)
+  battery              Int      @default(100)
+  fuel                 Int?
+  fuel2                Int?
+  temperature          Float?
+  temperature2         Float?
+  sensorTime1          Int?
+  sensorTime2          Int?
+  sensorTime3          Int?
+  sensorTime4          Int?
+  inactiveSeconds      Int      @default(0)
+  rpm                  Int      @default(0)
+  milleage             Float    @default(0)
+  warningTexts         String[] @default([])
+  alertTexts           String[] @default([])
+  alerts               String[] @default([])
+  warnings             String[] @default([])
+  hasCriticalAlert     Boolean  @default(false)
+  attributes           Json     @default("{}")
+  accessoriesAttributes Json    @default("[]")
+  inputs               Json     @default("[]")
+  outputs              Json     @default("[]")
+  createdAt            DateTime @default(now())
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, dateTime])
+  @@map("locations")
+}
+
+model Alert {
+  id            String   @id @default(uuid())
+  deviceId      String   @map("deviceId")
+  dateTime      DateTime
+  latitude      Float
+  longitude     Float
+  text          String
+  alertName     String
+  notifications String[] @default([])
+  alerts        String[] @default([])
+  createdAt     DateTime @default(now())
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, dateTime])
+  @@map("alerts")
+}
+
+model CommandLog {
+  id       String   @id @default(uuid())
+  deviceId String   @map("deviceId")
+  userId   String   @map("userId")
+  command  String
+  format   String   @default("Text")
+  sms      Boolean  @default(false)
+  result   String
+  dateTime DateTime @default(now())
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, dateTime])
+  @@map("command_logs")
+}
