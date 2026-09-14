@@ -18,10 +18,10 @@ export class AlertsController {
   @Post(':deviceId/alerts')
   async alerts(
     @Param('deviceId') deviceId: string,
+    @Req() req: any,
     @Body() dto: AlertsQueryDto,
     @Query('skip') skip?: string,
     @Query('take') take?: string,
-    @Req() req: any,
   ) {
     const device = await loadOwnedDevice(this.prisma, deviceId, req.ownerIds);
     const takeN = Math.min(Math.max(parseInt(take ?? '200', 10) || 200, 1), MAX_PAGE);

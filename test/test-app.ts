@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from './../src/app.module';
 
@@ -12,7 +12,7 @@ export async function createTestApp() {
 
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(
-      new (require('@nestjs/common').ValidationPipe)({
+      new ValidationPipe({
         transform: true,
         whitelist: true,
       }),

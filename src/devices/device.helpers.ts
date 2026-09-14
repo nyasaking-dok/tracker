@@ -23,7 +23,7 @@ export async function loadOwnedDevice(
 ) {
   const device = await prisma.device.findUnique({ where: { id: deviceId } });
   if (!device || !ownerIds.has(device.ownerId)) {
-    throw new NotFoundException('Device not found.');
+    throw new NotFoundException(`Device ${deviceId} not found`);
   }
   return device;
 }

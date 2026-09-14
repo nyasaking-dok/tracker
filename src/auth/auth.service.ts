@@ -27,7 +27,7 @@ export class AuthService {
 
     const payload = { sub: user.id, userName: user.userName };
     const expiresIn = this.config.get<string>('JWT_EXPIRES_IN') || '24h';
-    const token = await this.jwt.signAsync(payload, { expiresIn });
+    const token = await this.jwt.signAsync(payload, { expiresIn } as any);
     const expires = new Date();
     expires.setTime(expires.getTime() + this.parseDuration(expiresIn));
 

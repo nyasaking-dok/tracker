@@ -1,26 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsOptional, IsIn } from 'class-validator';
-
-export class DateRangeDto {
-  @ApiProperty({ example: '2024-06-01T00:00:00Z' })
-  @IsDateString()
-  from!: string;
-
-  @ApiProperty({ example: '2024-06-01T23:59:59Z' })
-  @IsDateString()
-  to!: string;
-}
-
-export class AlertsQueryDto extends DateRangeDto {
-  @ApiProperty({
-    optional: true,
-    example: 'SpeedLimit',
-    enum: ALERT_NAMES,
-  })
-  @IsOptional()
-  @IsIn(ALERT_NAMES as unknown as string[])
-  alertName?: string;
-}
 
 export const ALERT_NAMES = [
   'GPSOff',
@@ -79,3 +58,23 @@ export const ALERT_NAMES = [
   'AuthenticationFailed',
   'IdleTime',
 ] as const;
+
+export class DateRangeDto {
+  @ApiProperty({ example: '2024-06-01T00:00:00Z' })
+  @IsDateString()
+  from!: string;
+
+  @ApiProperty({ example: '2024-06-01T23:59:59Z' })
+  @IsDateString()
+  to!: string;
+}
+
+export class AlertsQueryDto extends DateRangeDto {
+  @ApiPropertyOptional({
+    example: 'SpeedLimit',
+    enum: ALERT_NAMES,
+  })
+  @IsOptional()
+  @IsIn(ALERT_NAMES as unknown as string[])
+  alertName?: string;
+}

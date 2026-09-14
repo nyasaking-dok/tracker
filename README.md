@@ -14,6 +14,138 @@ at this server unmodified.
 - Swagger UI at `/docs`
 - Jest unit + e2e tests
 
+## Architecture
+
+The server is a NestJS monolith organized by feature module. One shared
+`PrismaModule` (`@Global()`) provides the `PrismaService` everywhere, and a set
+of `APP_*` providers in `AppModule` apply cross-cutting concerns globally.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                            Request                                  │
+└─────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │  JwtOwnGuard (global)│   ← ownership chain from JWT
+                     └─────────────────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │   Controller(s)     │  ← route + DTO validation
+                     └─────────────────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │    Service / Prisma │  ← business logic + queries
+                     └─────────────────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │ PostgreSQL (Prisma) │
+                     └─────────────────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │ EnvelopeInterceptor │  ← wraps in Plaspy envelope
+                     └─────────────────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │ PlaspyExceptionFilter│ ← normalizes errors
+                     └─────────────────────┘
+```
+
+### Modules
+
+| Module      | Path prefix                       | Responsibility                                            |
+| ----------- | --------------------------------- | --------------------------------------------------------- |
+| `auth`      | `/api/Auth`                       | Token issuance, JWT strategy, ownership-chain guard, API-key validation |
+| `devices`   | `/api/devices`                    | Device CRUD, shapes, last-location, ownership scoping    |
+| `locations` | `/api/devices/{id}/locations`     | Telemetry history (POST-as-query, `skip`/`take` paging)   |
+| `alerts`    | `/api/devices/{id}/alerts`        | Alert history, filterable by ~50 alert names              |
+| `commands`  | `/api/devices/{id}/sendCommand`   | Command validation + simulated delivery, command log      |
+| `groups`    | `/api/groups`                     | Device groups, device-ownership validation on write       |
+| `users`     | `/api/users`                      | Master/sub-user management, countries/timezones           |
+| `ingestion` | `/api/ingest/{id}/position`       | Tracker-facing position intake + alert evaluation         |
+| `prisma`    | —                                 | `@Global()` module exporting `PrismaService`              |
+| `common`    | —                                 | Envelope interceptor, exception filter, API-usage service |
+
+### Data model
+
+```
+User 1 ──< Device (ownerId)
+ │ │
+ │ └────< Group   (ownerId)
+ └──────< User    (masterId → self-referential master/sub-user)
+
+Device 1 ─< Location   (deviceId)
+      1 ─< Alert      (deviceId)
+      1 ─< CommandLog (deviceId)
+```
+
+- **User** — account, API key (bcrypt hash), master/sub-user hierarchy via
+  `masterId`, daily usage counters.
+- **Device** — owned by a `User`, has a unique `ingestionKeyHash` (the hash of
+  the tracker-facing key, not the JWT path) and an `apiKey`.
+- **Location** — one telemetry point (full Plaspy field set incl. `milleage`).
+- **Alert** — a persisted, evaluated alert (drives the alerts API).
+- **CommandLog** — audit trail of every `sendCommand`.
+- **Group** — a named set of `deviceIds`.
+
+## Request flow
+
+### 1. User (JWT) requests
+
+```
+Client ── POST /api/Auth/Token {userName, apiKey}
+        ──> AuthService.issueToken: validates apiKey, disabled/expiry,
+            issues HS512 JWT. Response returns `token`, `expires`.
+
+Client ── <Any endpoint> with Authorization: Bearer <JWT>
+        ──> JwtOwnGuard: decodes token, builds `req.ownerIds`
+            (self id + all descendant sub-user ids), attaches `req.user`.
+
+        ──> Controller: parses + validates body/query (ValidationPipe),
+            calls service with `req.ownerIds`.
+
+        ──> Service: queries via Prisma scoped to `ownerId ∈ ownerIds`;
+            `loadOwnedDevice` throws 404 for foreign/unknown ids (no leak).
+
+        ──> EnvelopeInterceptor: wraps result in
+            { success, error, apiUsage, apiDailyUsage, ...payload }.
+```
+
+### 2. Tracker (ingest) requests
+
+```
+Tracker ── POST /api/ingest/{deviceId}/position
+            header X-Ingest-Key: <plaintext device ingestion key>
+        ──> (Public route — bypasses JwtOwnGuard)
+
+        ──> IngestionController:
+              1. looks up device, bcrypt-compares key to ingestionKeyHash
+              2. checks subscription expiry
+              3. AlertEvaluationService.evaluate(prev, incoming)
+                 → SpeedLimit, SOSButton, LowBattery, FuelJumpDown/Up,
+                   FuelLessThan, TemperatureGreaterThan/LowerThan,
+                   HarshBraking/Acceleration, IdleTime
+              4. writes a Location row (alertTexts/alerts/hasCriticalAlert
+                 enriched from evaluation)
+              5. writes evaluated Alert rows so the alerts API returns them.
+
+Response: { result, alertsGenerated, locationDateTime } (still enveloped).
+```
+
+### Two trust domains
+
+| Aspect      | User API (JWT)                          | Ingestion (tracker)                  |
+| ----------- | --------------------------------------- | ------------------------------------ |
+| Auth        | `Bearer` JWT via `POST /api/Auth/Token` | `X-Ingest-Key` header               |
+| Identity    | `User` with `ownerIds` chain            | `Device` with `ingestionKeyHash`     |
+| Scope       | Own + descendant data, 404 otherwise    | Single device only                   |
+| Guard       | `JwtOwnGuard` (`@Public()` to opt out)  | Public route, manual bcrypt check    |
+
 ## Quick start
 
 ```bash

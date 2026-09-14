@@ -31,7 +31,7 @@ model User {
 
   masterId String? @map("masterId")
   master   User?   @relation("MasterToSubUser", fields: [masterId], references: [id], onDelete: SetNull)
-  subUsers User[]  @relation("MasterToSubUser", onDelete: Cascade)
+  subUsers User[]  @relation("MasterToSubUser")
 
   devices  Device[]
   groups   Group[]

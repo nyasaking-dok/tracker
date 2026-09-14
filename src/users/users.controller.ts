@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
+import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { countries } from './countries';
@@ -54,7 +55,7 @@ export class UsersController {
     const emailExists = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (emailExists) throw new ForbiddenException('Email already in use.');
 
-    const apiKey = `pk_${require('crypto').randomBytes(24).toString('hex')}`;
+    const apiKey = `pk_${randomBytes(24).toString('hex')}`;
     const created = await this.prisma.user.create({
       data: {
         userName,
@@ -76,6 +77,7 @@ export class UsersController {
     });
     // return the plaintext key once so the creator can hand it to the sub-user
     const { apiKey: _hash, ...safe } = created;
+    void _hash;
     return { user: safe, apiKey };
   }
 

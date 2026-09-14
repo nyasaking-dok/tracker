@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -25,6 +26,6 @@ export class ApiKeyService {
   }
 
   newApiKey(): string {
-    return `pk_${require('crypto').randomBytes(24).toString('hex')}`;
+    return `pk_${randomBytes(24).toString('hex')}`;
   }
 }

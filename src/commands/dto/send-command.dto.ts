@@ -19,7 +19,6 @@ export class SendCommandDto {
 }
 
 const HEX_RE = /^([0-9a-fA-F]{2}[\s-]?)+$/;
-const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 
 export function validateCommandFormat(dto: SendCommandDto): string | null {
   const format = dto.format ?? 'Text';

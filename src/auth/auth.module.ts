@@ -12,9 +12,13 @@ import { JwtStrategy } from './jwt.strategy';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
+      inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET') || 'change-me-to-a-long-random-string',
-        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN') || '24h', algorithm: 'HS512' },
+        signOptions: {
+          expiresIn: config.get<string>('JWT_EXPIRES_IN') || '24h',
+          algorithm: 'HS512',
+        } as any,
       }),
     }),
   ],

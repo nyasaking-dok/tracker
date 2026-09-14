@@ -18,10 +18,10 @@ export class LocationsController {
   @Post(':deviceId/locations')
   async locations(
     @Param('deviceId') deviceId: string,
+    @Req() req: any,
     @Body() dto: DateRangeDto,
     @Query('skip') skip?: string,
     @Query('take') take?: string,
-    @Req() req: any,
   ) {
     const device = await loadOwnedDevice(this.prisma, deviceId, req.ownerIds);
     const from = new Date(dto.from);

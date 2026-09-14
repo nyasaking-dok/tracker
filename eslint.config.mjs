@@ -1,13 +1,11 @@
 // @ts-check
-"use strict";
+import eslint from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import globals from 'globals';
+import prettier from 'eslint-config-prettier';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 
-const eslint = require('@eslint/js');
-const tseslint = require('typescript-eslint');
-const globals = require('globals');
-const prettier = require('eslint-config-prettier');
-const eslintPluginPrettierRecommended = require('eslint-plugin-prettier/recommended');
-
-module.exports = tseslint.config(
+export default tseslint.config(
   { ignores: ['dist/**', 'coverage/**', 'node_modules/**'] },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
