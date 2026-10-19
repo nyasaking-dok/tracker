@@ -1,4 +1,4 @@
-import { Body, Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { AuthService } from './auth.service';
@@ -21,7 +21,6 @@ export class AuthController {
 
   @Public()
   @Post('Token')
-  @HttpCode(HttpStatus.OK)
   async getToken(@Body() dto: TokenRequestDto) {
     return this.authService.issueToken(dto.userName, dto.apiKey);
   }

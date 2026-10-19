@@ -1,4 +1,4 @@
-import * as request from 'supertest';
+import request from 'supertest';
 import { createTestApp } from './test-app';
 
 describe('Plaspy-mimic e2e (auth + envelope + ownership)', () => {
@@ -45,8 +45,15 @@ describe('Plaspy-mimic e2e (auth + envelope + ownership)', () => {
     expect(Array.isArray(res.body.devices)).toBe(true);
     // master sees own + sub-user devices (3 seeded)
     expect(res.body.devices.length).toBeGreaterThanOrEqual(3);
-    deviceId = res.body.devices[0].id;
+    // Pick a master-owned device (Truck 01 or Van 02) so the sub-user ownership
+    // check later correctly returns 404. "Service Car 03" sorts first
+    // alphabetically but is owned by the sub-user.
+    const masterOwned = res.body.devices.find(
+      (d: any) => d.name === 'Truck 01' || d.name === 'Van 02',
+    );
+    deviceId = (masterOwned ?? res.body.devices[0]).id;
   });
+
 
   it('GET /api/devices/{id} returns the device detail', async () => {
     const res = await request(app.getHttpServer())
